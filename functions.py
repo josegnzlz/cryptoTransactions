@@ -160,6 +160,14 @@ def show_wallet():
         Precio venta: {entry[6]}, Beneficios totales: {entry[7]}, 
         Beneficios en porcentaje: {entry[8]}%\n""")
 
+def check_dexpool_in_database(dexpool_name):
+    """ If coin doesn´t exist, create it. If exists, do nothing """
+    
+    dbDexpoolCheck = f"""SELECT coin_name FROM coins WHERE EXISTS (SELECT 
+    coin_name FROM coins WHERE coin_name='{dexpool_name}')"""
+    result = database_connection(dbDexpoolCheck)
+    if result == []:
+        cls.DexPool(dexpool_name)
 
 
 

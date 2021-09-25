@@ -25,11 +25,10 @@ class WalletEntry:
 class Transactions:
     """ Contains the logic to modify the database when a transaction takes place """
 
-    def __init__(self, coin_name, amount, fee_coin_name, fee_amount, operation):
+    def __init__(self, coin_name, amount, fee_coin_name, fee_amount):
         self.timestamp = datetime.now()
         self.amount = amount
         self.fee_amount = fee_amount
-        self.operation = operation
 
         # Check if coin exists in the actual database, if it doesn´t, adds it
         func.check_coin_in_database(coin_name)
@@ -103,3 +102,48 @@ class SellTransaction(Transactions):
                 break
         
         func.if_fee(fee_coin_name, fee_amount)
+
+class DexPool:
+    """ Register dex and pool that appears for the first time """
+
+    def __init__(self, dexpool_name):
+        self.dexpool_name = dexpool_name
+
+class Stake:
+    """ Cointains the logic to stake coins """
+
+    def __init__(self, coin_name, amount, dex_pool, fee_coin_name, fee_amount):
+        self.coin_name = coin_name
+        self.amount_staked = float(amount)
+        self.dex_pool = dex_pool
+        self.fee_coin_name = fee_coin_name
+        self.fee_amount = float(fee_amount) if fee_amount != "" else ""
+        self.timestamp = datetime.now()
+
+        # Find open entries that share coin and aren´t staked yet
+        dbQueryEntries = f"""SELECT w.entry_id, w.amount FROM wallet as w JOIN 
+        coins AS c ON w.coin_id=c.coin_id WHERE c.coin_name={self.coin_name} 
+        AND w.dexpool_id IS NULL AND w.total_benefit IS NULL"""
+        result = func.database_connection(dbQueryEntries)
+
+        # Check dex pool
+        func.check_dexpool_in_database(dex_pool)
+        dbQueryDexPool = f"""SELECT dexpool_id FROM dex_pools WHERE 
+        dexpool_name = {dex_pool}"""
+        dex_pool_id = func.database_connection(dbQueryDexPool)[0][0]
+
+        # Loop between entries
+        am_to_be_staked = self.amount_staked
+        for entry in result:
+            if am_to_be_staked >= entry[1]:
+                dbQueryUpdateEntry = f"""UPDATE wallet SET 
+                stake_date={self.timestamp}, dexpool_id={dex_pool_id}
+                WHERE entry_id={entry[0]}"""
+                func.database_connection(dbQueryUpdateEntry)
+                if am_to_be_staked == entry[1]:
+                    break
+                am_to_be_staked -= entry[1]
+            
+            else:
+                # Romper entrada en 2 y actualizar lo anterior en una de ellas
+                pass
