@@ -167,11 +167,16 @@ def show_wallet():
 def check_dexpool_in_database(dexpool_name):
     """ If coin doesn´t exist, create it. If exists, do nothing """
     
-    dbDexpoolCheck = f"""SELECT coin_name FROM coins WHERE EXISTS (SELECT 
-    coin_name FROM coins WHERE coin_name='{dexpool_name}')"""
+    dbDexpoolCheck = f"""SELECT dexpool_name FROM dex_pools WHERE EXISTS (SELECT 
+    dexpool_name FROM dex_pools WHERE dexpool_name='{dexpool_name}')"""
     result = database_connection(dbDexpoolCheck)
+    dexpool_id = 0
     if result == []:
         cls.DexPool(dexpool_name)
+        dbQuery = f"""SELECT dexpool_id FROM dex_pools WHERE dexpool_name=
+        '{dexpool_name}'"""
+        dexpool_id = database_connection(dbQuery)[0][0]
+    return dexpool_id
 
 def check_coin_name_input(coin_name):
     """ Returns True if everything is fine, False if a mistake has ocurred """

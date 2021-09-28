@@ -11,7 +11,8 @@ while True:
     op = int(input("""Si quieres hacer una COMPRA pulsa 1, si quieres hacer una venta pulsa 2, 
     reiniciar la base de datos 3, si quieres hacer un stake de una moneda pulsa 4,
     si quieres retirar beneficios de una pool pulsa 5, ver las entradas activas 6,
-    para sacar monedas de una stake pool pulsa 7, salir del bucle 8: """))
+    para sacar monedas de una stake pool pulsa 7, para hacer farm (manejando las monedas desde
+    antes de la venta de los tokens originales) pulsa 8, para salir del bucle 9: """))
 
     if op == 1:
         print("Operación de compra")
@@ -94,6 +95,36 @@ while True:
             continue
 
         c.Destake(coin_name, amount, fee_coin_name, fee_amount, dexpool_id)
+        func.show_wallet()
+
+    elif op == 8:
+        print("Operación de farm")
+        coin_name = input("Moneda transaccionada 1: ")
+        amount = input("Cantidad de moneda transaccionada 1: ")
+        coin_name2 = input("Moneda transaccionada 2: ")
+        amount2 = input("Cantidad de moneda transaccionada 2: ")
+        fee_coin_name = input("Moneda usada para pagar las fees al aportar liquidez: ")
+        fee_amount = input("Cantidad de moneda usada en fees al aportar liquidez: ")
+        lp_coin = input("LP token: ")
+        lp_amount = input("Cantidad del LP token: ")
+        fee_coin_name_staked = input("Moneda usada para pagar las fees al entrar en la Farm: ")
+        fee_amount_staked = input("Cantidad de moneda usada en fees al entrar en la Farm: ")
+        opt = int(input("¿La pool en la que vas a entrar ha sido ya registrada? (1: Si, 0: No): "))
+        if opt == 1:
+            print(func.dexpools_database())
+            dexpool_id = int(input("Selecciona el id de la pool: "))
+        else:
+            dexpool_name = input("Nombre de la dex-pool: ")
+            dexpool_id = func.check_dexpool_in_database(dexpool_name)
+
+        if func.check_coin_name_input(coin_name) == False:
+            continue
+        if func.check_coin_name_input(fee_coin_name) == False:
+            continue
+
+        c.Farm(coin_name, coin_name2, lp_coin, amount, amount2, lp_amount, 
+                dexpool_id, fee_coin_name, fee_amount, fee_coin_name_staked,
+                fee_amount_staked)
         func.show_wallet()
 
     else:

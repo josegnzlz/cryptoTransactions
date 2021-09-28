@@ -232,3 +232,19 @@ class Destake(Transactions):
                         am_destake, self.price])
                 break
 
+class Farm:
+    """ A farming trx can be made using sell, sell, buy, stake, or using this
+    class to abreviate """
+
+    def __init__(self, coin_name1, coin_name2, lp_coin, amount1, amount2, 
+            lp_amount, dex_pool, fee_coin_name, fee_amount, 
+            fee_coin_name_stake, fee_amount_stake):
+        # Sell transactions for the first 2 coins
+        SellTransaction(coin_name1, amount1, fee_coin_name, fee_amount)
+        SellTransaction(coin_name2, amount2, "", "")
+
+        # Buy transaction for the LP token
+        buy_trx = BuyTransaction(lp_coin, lp_amount, "", "")
+
+        # Stake transaction
+        Stake(lp_coin, lp_amount, dex_pool, fee_coin_name_stake, fee_amount_stake)
