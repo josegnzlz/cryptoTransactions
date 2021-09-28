@@ -90,7 +90,7 @@ def check_coin_in_database(coin):
 def if_fee(fee_coin_name, fee_amount):
     if fee_coin_name != "":
         # Select open entries
-        result = _open_entries_check(fee_coin_name)
+        result = _open_normal_entries_check(fee_coin_name)
 
         for entry in result:
             if float(fee_amount) < entry[1]:
@@ -101,10 +101,11 @@ def if_fee(fee_coin_name, fee_amount):
                 # Close the entry and if fee is still positive, substract from the next entry
                 pass
 
-def _open_entries_check(coin):
+def _open_normal_entries_check(coin):
     dbQuery = f"""SELECT wallet.entry_id, wallet.amount, wallet.price_buy, 
     wallet.buy_date FROM wallet JOIN coins ON wallet.coin_id=coins.coin_id 
-    WHERE coins.coin_name='{coin}' AND wallet.total_benefit IS NULL"""
+    WHERE coins.coin_name='{coin}' AND wallet.total_benefit IS NULL AND 
+    wallet.dexpool_id IS NULL"""
     result = database_connection(dbQuery)
     return result
 
@@ -151,14 +152,15 @@ def reboot_database():
 
 def show_wallet():
     dbQuery="""SELECT w.entry_id, c.coin_name, w.buy_date, w.amount, w.price_buy, 
-    w.sell_date, w.price_sell, w.total_benefit, w.perc_benefit FROM wallet AS w 
-    JOIN coins AS c ON w.coin_id=c.coin_id"""
+    w.stake_date, dx.dexpool_name, w.sell_date, w.price_sell, w.total_benefit, 
+    w.perc_benefit FROM wallet AS w JOIN coins AS c ON w.coin_id=c.coin_id LEFT 
+    JOIN dex_pools AS dx ON w.dexpool_id=dx.dexpool_id ORDER BY w.entry_id ASC"""
     result = database_connection(dbQuery)
     for entry in result:
         print(f"""Entrada {entry[0]}: Moneda: {entry[1]}, Fecha compra: {entry[2]},
-        cantidad comprada: {entry[3]}, Precio compra: {entry[4]}, Fecha venta: {entry[5]},
-        Precio venta: {entry[6]}, Beneficios totales: {entry[7]}, 
-        Beneficios en porcentaje: {entry[8]}%\n""")
+        cantidad: {entry[3]}, Precio compra: {entry[4]}, Fecha de stake: {entry[5]},
+        Dex/pool: {entry[6]}, Fecha venta: {entry[7]}, Precio venta: {entry[8]}, 
+        Beneficios totales: {entry[9]}, Beneficios en porcentaje: {entry[10]}%\n""")
 
 def check_dexpool_in_database(dexpool_name):
     """ If coin doesn´t exist, create it. If exists, do nothing """

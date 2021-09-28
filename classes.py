@@ -49,9 +49,9 @@ class Transactions:
 class BuyTransaction(Transactions):
     """ Contains the logic of a buy transaction """
     
-    def __init__(self, coin_name, amount, fee_coin_name, fee_amount, operation):
+    def __init__(self, coin_name, amount, fee_coin_name, fee_amount):
         """ Creates an entry in Wallet """
-        super().__init__(coin_name, amount, fee_coin_name, fee_amount, operation)
+        super().__init__(coin_name, amount, fee_coin_name, fee_amount)
 
         # Creation of a Wallet entry given the information of the transaction
         WalletEntry(self.coin_id, str(self.timestamp), self.amount, self.price)
@@ -62,12 +62,12 @@ class BuyTransaction(Transactions):
 class SellTransaction(Transactions):
     """ Contains the logic of a sell transaction """
 
-    def __init__(self, coin_name, amount, fee_coin_name, fee_amount, operation):
+    def __init__(self, coin_name, amount, fee_coin_name, fee_amount):
         """ Close entries and create new ones with the left amount """
-        super().__init__(coin_name, amount, fee_coin_name, fee_amount, operation)
+        super().__init__(coin_name, amount, fee_coin_name, fee_amount)
 
         # Check open entries in the Wallet
-        result = func._open_entries_check(coin_name)
+        result = func._open_normal_entries_check(coin_name)
 
         # Loop entries comparing the transaction´s amount with the entry's amount
         remaining_amount = float(self.amount)
@@ -109,6 +109,8 @@ class DexPool:
     def __init__(self, dexpool_name):
         self.dexpool_name = dexpool_name
 
+        func.insert_query_connection("dex_pools", ["dexpool_name"], [self.dexpool_name])
+
 class Stake:
     """ Cointains the logic to stake coins """
 
@@ -122,14 +124,14 @@ class Stake:
 
         # Find open entries that share coin and aren´t staked yet
         dbQueryEntries = f"""SELECT w.entry_id, w.amount FROM wallet as w JOIN 
-        coins AS c ON w.coin_id=c.coin_id WHERE c.coin_name={self.coin_name} 
+        coins AS c ON w.coin_id=c.coin_id WHERE c.coin_name='{self.coin_name}' 
         AND w.dexpool_id IS NULL AND w.total_benefit IS NULL"""
         result = func.database_connection(dbQueryEntries)
 
         # Check dex pool
         func.check_dexpool_in_database(dex_pool)
         dbQueryDexPool = f"""SELECT dexpool_id FROM dex_pools WHERE 
-        dexpool_name = {dex_pool}"""
+        dexpool_name='{dex_pool}'"""
         dex_pool_id = func.database_connection(dbQueryDexPool)[0][0]
 
         # Loop between entries
@@ -137,7 +139,7 @@ class Stake:
         for entry in result:
             if am_to_be_staked >= entry[1]:
                 dbQueryUpdateEntry = f"""UPDATE wallet SET 
-                stake_date={self.timestamp}, dexpool_id={dex_pool_id}
+                stake_date='{self.timestamp}', dexpool_id={dex_pool_id}
                 WHERE entry_id={entry[0]}"""
                 func.database_connection(dbQueryUpdateEntry)
                 if am_to_be_staked == entry[1]:
@@ -145,5 +147,19 @@ class Stake:
                 am_to_be_staked -= entry[1]
             
             else:
-                # Romper entrada en 2 y actualizar lo anterior en una de ellas
-                pass
+                # Leave the actual entry with the no stake amount
+                new_amount = entry[1] - am_to_be_staked
+                dbQueryUpdate = f"""UPDATE wallet SET amount={new_amount} WHERE 
+                entry_id={entry[0]}"""
+                func.database_connection(dbQueryUpdate)
+
+                # Create a new entry with the same information but staked
+                dbQuerySelect = f"""SELECT coin_id, buy_date, price_buy FROM 
+                wallet WHERE entry_id={entry[0]}"""
+                sol = func.database_connection(dbQuerySelect)[0]
+                func.insert_query_connection("wallet", ["coin_id", "buy_date", 
+                        "amount", "price_buy", "dexpool_id", "stake_date"], 
+                        [sol[0], sol[1], am_to_be_staked, sol[2], dex_pool_id, 
+                        self.timestamp])
+            
+        func.if_fee(fee_coin_name, fee_amount)

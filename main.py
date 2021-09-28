@@ -42,5 +42,8 @@ elif op == 4:
     fee_coin_name = input("Moneda usada para pagar las fees: ")
     fee_amount = input("Cantidad de moneda usada en fees: ")
 
+    c.Stake(coin_name, amount, dex_pool, fee_coin_name, fee_amount)
+    func.show_wallet()
+
 else:
     print("Entradas activas en la base de datos")
