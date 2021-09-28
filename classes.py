@@ -183,19 +183,38 @@ class HarvestBuy(Transactions):
                 "price_buy"], [self.coin_id, self.timestamp, self.amount, self.price])
 
 
-# class Destake:
-#     """ How the program manages the exit from a stake pool """
+class Destake(Transactions):
+    """ How the program manages the exit from a stake pool """
 
-#     def __init__(self, dexpool, amount, coin):
-#         self.dexpool = dexpool
-#         self.amount = amount
-#         self.coin = coin
-#         self.timestamp = datetime.now()
+    def __init__(self, coin_name, amount, fee_coin_name, fee_amount, dexpool_id):
+        super().__init__(coin_name, amount, fee_coin_name, fee_amount)
+        self.dexpool = dexpool_id
 
-#         dbQuery = f"""SELECT w.entry_id, w.amount FROM wallet AS w JOIN dex_pools 
-#         AS dx ON w.dexpool_id=dx.dexpool_id"""
-#         result = func.database_connection(dbQuery)
-#         am_destake = self.amount
-#         for entry in result:
-#             if am_destake >= entry[1]:
-#                 # Close the entry and open a new one with no stake label
+        dbQuery = f"""SELECT w.entry_id, w.amount, w.price_buy FROM wallet AS w JOIN dex_pools 
+        AS dx ON w.dexpool_id=dx.dexpool_id"""
+        result = func.database_connection(dbQuery)
+        am_destake = self.amount
+        for entry in result:
+            if am_destake >= entry[1]:
+                # Close the entry and open a new one with no stake label
+                func.benefit_sell_submission(self.price, entry[2], entry[1], 
+                        entry[0], self.timestamp)
+                func.insert_query_connection("wallet", ["coin_id", "buy_date", 
+                        "amount", "price_buy"], [self.coin_id, self.timestamp, 
+                        entry[1], self.price])
+                if am_destake == entry[1]:
+                    break
+                am_destake -= entry[1]
+            
+            else:
+                # Modify the actual entry amount and calculate benefit
+                dbQueryUpdate = f"""UPDATE wallet SET amount={am_destake} WHERE 
+                entry_id={entry[0]}"""
+                func.database_connection(dbQueryUpdate)
+                func.benefit_sell_submission(self.price, entry[2], am_destake, 
+                        entry[0], self.timestamp)
+
+                # Open a new entry with a reduced amount
+                func.insert_query_connection("wallet", ["coin_id", "buy_date", 
+                        "amount", "price_buy"], [self.coin_id, self.timestamp, 
+                        am_destake, self.price])
