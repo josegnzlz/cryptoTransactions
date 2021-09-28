@@ -27,8 +27,8 @@ class Transactions:
 
     def __init__(self, coin_name, amount, fee_coin_name, fee_amount):
         self.timestamp = datetime.now()
-        self.amount = amount
-        self.fee_amount = fee_amount
+        self.amount = float(amount)
+        self.fee_amount = float(fee_amount) if fee_amount != "" else ""
 
         # Check if coin exists in the actual database, if it doesn´t, adds it
         func.check_coin_in_database(coin_name)
@@ -111,20 +111,16 @@ class DexPool:
 
         func.insert_query_connection("dex_pools", ["dexpool_name"], [self.dexpool_name])
 
-class Stake:
+class Stake(Transactions):
     """ Cointains the logic to stake coins """
 
     def __init__(self, coin_name, amount, dex_pool, fee_coin_name, fee_amount):
-        self.coin_name = coin_name
-        self.amount_staked = float(amount)
+        super().__init__(coin_name, amount, fee_coin_name, fee_amount)
         self.dex_pool = dex_pool
-        self.fee_coin_name = fee_coin_name
-        self.fee_amount = float(fee_amount) if fee_amount != "" else ""
-        self.timestamp = datetime.now()
 
         # Find open entries that share coin and aren´t staked yet
         dbQueryEntries = f"""SELECT w.entry_id, w.amount FROM wallet as w JOIN 
-        coins AS c ON w.coin_id=c.coin_id WHERE c.coin_name='{self.coin_name}' 
+        coins AS c ON w.coin_id=c.coin_id WHERE c.coin_id='{self.coin_id}' 
         AND w.dexpool_id IS NULL AND w.total_benefit IS NULL"""
         result = func.database_connection(dbQueryEntries)
 
@@ -135,7 +131,7 @@ class Stake:
         dex_pool_id = func.database_connection(dbQueryDexPool)[0][0]
 
         # Loop between entries
-        am_to_be_staked = self.amount_staked
+        am_to_be_staked = self.amount
         for entry in result:
             if am_to_be_staked >= entry[1]:
                 dbQueryUpdateEntry = f"""UPDATE wallet SET 
@@ -163,3 +159,43 @@ class Stake:
                         self.timestamp])
             
         func.if_fee(fee_coin_name, fee_amount)
+
+class HarvestBuy(Transactions):
+    """ Buy transaction but comming from a Stake/Farm pool """
+
+    def __init__(self, coin_name, amount, fee_coin_name, fee_amount, dexpool_id):
+        super().__init__(coin_name, amount, fee_coin_name, fee_amount)
+        self.dexpool_id = dexpool_id
+
+        # Update benef_harvested with the dolar amount of the harvested coin
+        benef_harvested = self.amount * self.price
+        dbQuery = f"""SELECT w.entry_id, w.benef_harvested FROM wallet AS w JOIN
+        dex_pools AS dx ON w.dexpool_id=dx.dexpool_id WHERE w.dexpool_id=
+        {self.dexpool_id} ORDER BY w.entry_id ASC LIMIT 1"""
+        entry = func.database_connection(dbQuery)[0]
+        dbQueryUpdate = f"""UPDATE wallet SET 
+        benef_harvested={0 if entry[1]==None else float(entry[1]) + benef_harvested} 
+        WHERE entry_id={entry[0]}"""
+        func.database_connection(dbQueryUpdate)
+
+        # Create a new entry
+        func.insert_query_connection("wallet", ["coin_id", "buy_date", "amount", 
+                "price_buy"], [self.coin_id, self.timestamp, self.amount, self.price])
+
+
+# class Destake:
+#     """ How the program manages the exit from a stake pool """
+
+#     def __init__(self, dexpool, amount, coin):
+#         self.dexpool = dexpool
+#         self.amount = amount
+#         self.coin = coin
+#         self.timestamp = datetime.now()
+
+#         dbQuery = f"""SELECT w.entry_id, w.amount FROM wallet AS w JOIN dex_pools 
+#         AS dx ON w.dexpool_id=dx.dexpool_id"""
+#         result = func.database_connection(dbQuery)
+#         am_destake = self.amount
+#         for entry in result:
+#             if am_destake >= entry[1]:
+#                 # Close the entry and open a new one with no stake label

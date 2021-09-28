@@ -152,15 +152,17 @@ def reboot_database():
 
 def show_wallet():
     dbQuery="""SELECT w.entry_id, c.coin_name, w.buy_date, w.amount, w.price_buy, 
-    w.stake_date, dx.dexpool_name, w.sell_date, w.price_sell, w.total_benefit, 
-    w.perc_benefit FROM wallet AS w JOIN coins AS c ON w.coin_id=c.coin_id LEFT 
-    JOIN dex_pools AS dx ON w.dexpool_id=dx.dexpool_id ORDER BY w.entry_id ASC"""
+    w.stake_date, dx.dexpool_name, w.benef_harvested, w.sell_date, w.price_sell, 
+    w.total_benefit, w.perc_benefit FROM wallet AS w JOIN coins AS c ON w.coin_id=
+    c.coin_id LEFT JOIN dex_pools AS dx ON w.dexpool_id=dx.dexpool_id ORDER BY 
+    w.entry_id ASC"""
     result = database_connection(dbQuery)
     for entry in result:
         print(f"""Entrada {entry[0]}: Moneda: {entry[1]}, Fecha compra: {entry[2]},
         cantidad: {entry[3]}, Precio compra: {entry[4]}, Fecha de stake: {entry[5]},
-        Dex/pool: {entry[6]}, Fecha venta: {entry[7]}, Precio venta: {entry[8]}, 
-        Beneficios totales: {entry[9]}, Beneficios en porcentaje: {entry[10]}%\n""")
+        Dex/pool: {entry[6]}, Beneficios recogidos: {entry[7]}, Fecha venta: {entry[8]}, 
+        Precio venta: {entry[9]}, Beneficios totales: {entry[10]}, 
+        Beneficios en porcentaje: {entry[11]}%\n""")
 
 def check_dexpool_in_database(dexpool_name):
     """ If coin doesn´t exist, create it. If exists, do nothing """
@@ -171,5 +173,21 @@ def check_dexpool_in_database(dexpool_name):
     if result == []:
         cls.DexPool(dexpool_name)
 
+def check_coin_name_input(coin_name):
+    """ Returns True if everything is fine, False if a mistake has ocurred """
+    try:
+        float(coin_name)
+        print("El nombre de la moneda no puede ser un número")
+        back = False
+    except:
+        back = True
+    return back
 
-
+def dexpools_database():
+    dbQuery = """SELECT dexpool_id, dexpool_name FROM dex_pools"""
+    dexpools = database_connection(dbQuery)
+    solution = [["Dexpool id", "Dexpool name"]]
+    select = """Dexpool id      Dexpool name\n"""
+    for dexpool in dexpools:
+        select += f"""{dexpool[0]}          {dexpool[1]}"""
+    return select
