@@ -173,15 +173,15 @@ class HarvestBuy(Transactions):
         dex_pools AS dx ON w.dexpool_id=dx.dexpool_id WHERE w.dexpool_id=
         {self.dexpool_id} ORDER BY w.entry_id ASC LIMIT 1"""
         entry = func.database_connection(dbQuery)[0]
+        bh = 0 if entry[1]==None else float(entry[1])
         dbQueryUpdate = f"""UPDATE wallet SET 
-        benef_harvested={0 if entry[1]==None else float(entry[1]) + benef_harvested} 
+        benef_harvested={bh + benef_harvested} 
         WHERE entry_id={entry[0]}"""
         func.database_connection(dbQueryUpdate)
 
         # Create a new entry
         func.insert_query_connection("wallet", ["coin_id", "buy_date", "amount", 
                 "price_buy"], [self.coin_id, self.timestamp, self.amount, self.price])
-
 
 class Destake(Transactions):
     """ How the program manages the exit from a stake pool """
@@ -191,8 +191,9 @@ class Destake(Transactions):
         self.dexpool = dexpool_id
 
         dbQuery = f"""SELECT w.entry_id, w.amount, w.price_buy FROM wallet AS w JOIN dex_pools 
-        AS dx ON w.dexpool_id=dx.dexpool_id"""
+        AS dx ON w.dexpool_id=dx.dexpool_id ORDER BY w.entry_id ASC"""
         result = func.database_connection(dbQuery)
+        print(result)
         am_destake = self.amount
         for entry in result:
             if am_destake >= entry[1]:
@@ -207,6 +208,17 @@ class Destake(Transactions):
                 am_destake -= entry[1]
             
             else:
+                # Create a new entry with the remaining amount staked
+                rem_am = entry[1] - am_destake
+                dbQueryData = f"""SELECT buy_date, stake_date FROM wallet WHERE 
+                entry_id={entry[0]}"""
+                data = func.database_connection(dbQueryData)[0]
+                print(data)
+                func.insert_query_connection("wallet", ["coin_id", "buy_date", 
+                        "amount", "price_buy", "dexpool_id", "stake_date"], 
+                        [self.coin_id, data[0], rem_am, self.price, 
+                        self.dexpool, data[1]])
+
                 # Modify the actual entry amount and calculate benefit
                 dbQueryUpdate = f"""UPDATE wallet SET amount={am_destake} WHERE 
                 entry_id={entry[0]}"""
@@ -218,3 +230,5 @@ class Destake(Transactions):
                 func.insert_query_connection("wallet", ["coin_id", "buy_date", 
                         "amount", "price_buy"], [self.coin_id, self.timestamp, 
                         am_destake, self.price])
+                break
+

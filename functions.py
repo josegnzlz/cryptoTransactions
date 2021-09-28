@@ -160,7 +160,7 @@ def show_wallet():
     for entry in result:
         print(f"""Entrada {entry[0]}: Moneda: {entry[1]}, Fecha compra: {entry[2]},
         cantidad: {entry[3]}, Precio compra: {entry[4]}, Fecha de stake: {entry[5]},
-        Dex/pool: {entry[6]}, Beneficios recogidos: {entry[7]}, Fecha venta: {entry[8]}, 
+        Dex/pool: {entry[6]}, Beneficios recogidos: {entry[7]}$, Fecha venta: {entry[8]}, 
         Precio venta: {entry[9]}, Beneficios totales: {entry[10]}, 
         Beneficios en porcentaje: {entry[11]}%\n""")
 
