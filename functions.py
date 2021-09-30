@@ -75,7 +75,6 @@ def insert_query_connection(table_name, columns, values):
     values_array += ")"
 
     dbQuery = f"""INSERT INTO {table_name} {columns_array} VALUES {values_array}"""
-    print(dbQuery)
     database_connection(dbQuery)
 
 def check_coin_in_database(coin):
@@ -99,7 +98,8 @@ def if_fee(fee_coin_name, fee_amount):
                 database_connection(dbQueryUpdate)
             else:
                 # Close the entry and if fee is still positive, substract from the next entry
-                pass
+                price_sell = cmc_price_consult(fee_coin_name)
+                benefit_sell_submission(price_sell, entry[2], entry[1], entry[0], datetime.now())
 
 def _open_normal_entries_check(coin):
     dbQuery = f"""SELECT wallet.entry_id, wallet.amount, wallet.price_buy, 
@@ -111,7 +111,7 @@ def _open_normal_entries_check(coin):
 
 def calculate_benefit(price_sell, price_buy, amount):
     """ Calculate the benefits """
-    print(f"En calculo de beneficios: Precio de compra: {price_buy} Precio de venta: {price_sell} Cantidad: {amount}")
+
     total_benefit = amount * price_sell - amount * price_buy
     if price_sell >= price_buy:
         perc_benefit = (price_sell / price_buy - 1) * 100
@@ -128,7 +128,6 @@ def benefit_sell_submission(price_sell, price_buy, coin_amount_entry, entry,
     dbSubmitQuery = f"""UPDATE wallet SET sell_date='{sell_date}', 
     price_sell={price_sell}, total_benefit={benefits[0]}, 
     perc_benefit={benefits[1]} WHERE entry_id={entry}"""
-    print(dbSubmitQuery)
     database_connection(dbSubmitQuery)
 
 def reboot_database():
@@ -196,3 +195,50 @@ def dexpools_database():
     for dexpool in dexpools:
         select += f"""{dexpool[0]}          {dexpool[1]}"""
     return select
+
+def show_active_entries():
+    """ It only shows the entries that are now open """
+
+    dbQuery="""SELECT w.entry_id, c.coin_name, w.buy_date, w.amount, w.price_buy, 
+    w.stake_date, dx.dexpool_name, w.benef_harvested, w.sell_date, w.price_sell, 
+    w.total_benefit, w.perc_benefit FROM wallet AS w JOIN coins AS c ON w.coin_id=
+    c.coin_id LEFT JOIN dex_pools AS dx ON w.dexpool_id=dx.dexpool_id WHERE 
+    w.total_benefit IS NULL ORDER BY w.entry_id ASC"""
+
+    # Hay que calcular los beneficios que se tienen ahora mismo en cada una de las entradas
+
+    result = database_connection(dbQuery)
+    for entry in result:
+        if entry[5] is None:
+            price_actual = cmc_price_consult(entry[1])
+            b_array = calculate_benefit(price_actual, entry[4], entry[3])
+        else:
+            print(f"{entry[1]}")
+            tvl = input(f"¿Cuál es el TVL de la pool de la que proviene esta moneda? ({entry[6]}): ")
+            clpt = input("¿Cuántos tokens hay en circulación?")
+            price_actual = tvl/clpt * entry[3]
+            b_array = calculate_benefit(price_actual, entry[4], entry[3])
+        print(f"""Entrada {entry[0]}: Moneda: {entry[1]}, Fecha compra: {entry[2]},
+        cantidad: {entry[3]}, Precio compra: {entry[4]}, Fecha de stake: {entry[5]},
+        Dex/pool: {entry[6]}, Beneficios recogidos: {entry[7]}$, Fecha hoy: {str(datetime.now())}, 
+        Precio hoy: {price_actual}, Beneficios actuales: {round(b_array[0], 2)}, 
+        Beneficios actual %: {round(b_array[1], 2)}%\n""")
+
+def show_history():
+    """ Shows all entries that have reported at least a 1% benefit or loss """
+
+    dbQuery="""SELECT w.entry_id, c.coin_name, w.buy_date, w.amount, w.price_buy, 
+    w.stake_date, dx.dexpool_name, w.benef_harvested, w.sell_date, w.price_sell, 
+    w.total_benefit, w.perc_benefit FROM wallet AS w JOIN coins AS c ON w.coin_id=
+    c.coin_id LEFT JOIN dex_pools AS dx ON w.dexpool_id=dx.dexpool_id WHERE 
+    w.total_benefit IS NOT NULL AND w.perc_benefit >= 1 ORDER BY w.entry_id ASC"""
+
+    result = database_connection(dbQuery)
+    for entry in result:
+        print(f"""Entrada {entry[0]}: Moneda: {entry[1]}, Fecha compra: {entry[2]},
+        cantidad: {entry[3]}, Precio compra: {entry[4]}, Fecha de stake: {entry[5]},
+        Dex/pool: {entry[6]}, Beneficios recogidos: {entry[7]}$, Fecha venta: {entry[8]}, 
+        Precio venta: {entry[9]}, Beneficios totales: {round(entry[10], 2)}, 
+        Beneficios en porcentaje: {round(entry[11], 2)}%\n""")
+
+
